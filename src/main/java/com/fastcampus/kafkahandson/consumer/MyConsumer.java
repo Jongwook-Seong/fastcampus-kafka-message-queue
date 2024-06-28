@@ -9,6 +9,10 @@ import java.util.function.Consumer;
 @Component
 public class MyConsumer implements Consumer<Message<MyMessage>> {
 
+    MyConsumer() {
+        System.out.println("MyConsumer init!");
+    }
+
     @Override
     public void accept(Message<MyMessage> message) {
         System.out.println("Message arrived! - " + message.getPayload());

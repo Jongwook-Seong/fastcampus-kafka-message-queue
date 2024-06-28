@@ -13,6 +13,10 @@ import java.util.function.Supplier;
 @Component
 public class MyProducer implements Supplier<Flux<Message<MyMessage>>> {
 
+    MyProducer() {
+        System.out.println("MyProducer init!");
+    }
+
     private final Sinks.Many<Message<MyMessage>> sinks = Sinks.many().unicast().onBackpressureBuffer();
 
     public void sendMessage(MyMessage myMessage) {
