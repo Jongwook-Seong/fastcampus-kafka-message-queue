@@ -4,6 +4,7 @@ import com.fastcampus.kafkahandson.model.MyMessage;
 import com.fastcampus.kafkahandson.producer.MyProducer;
 import com.fastcampus.kafkahandson.producer.MySCStreamProducer;
 import com.fastcampus.kafkahandson.producer.MySecondProducer;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -23,10 +24,14 @@ public class MyController {
     @PostMapping("/message")
     void message(@RequestBody MyMessage message) {
 //        mySCStreamProducer.sendMessage(message);
-        myProducer.sendMessage(message);
+        try {
+            myProducer.sendMessage(message);
+        } catch (JsonProcessingException e) {
+            e.fillInStackTrace();
+        }
     }
 
-    @PostMapping("/second-message/{key}")
+//    @PostMapping("/second-message/{key}")
     void message(@PathVariable String key, @RequestBody String message) {
         mySecondProducer.sendMessageWithKey(key, message);
     }
