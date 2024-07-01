@@ -20,7 +20,7 @@ public class MyBatchConsumer {
 
 //    private final ExecutorService executorService = Executors.newFixedThreadPool(10);
 
-    @KafkaListener(topics = { MY_JSON_TOPIC }, groupId = "batch-test-consumer-group", containerFactory = "batchKafkaListenerContainerFactory", concurrency = "3")
+//    @KafkaListener(topics = { MY_JSON_TOPIC }, groupId = "batch-test-consumer-group", containerFactory = "batchKafkaListenerContainerFactory", concurrency = "3")
     public void accept(List<ConsumerRecord<String, String>> messages) {
         System.out.println("[Batch Consumer] Batch message arrived! - count " + messages.size());
 //        messages.forEach(message -> executorService.submit(() -> {

@@ -21,7 +21,7 @@ import java.util.Optional;
 public class MyServiceImpl implements MyService {
 
     private final MyJpaRepository myJpaRepository;
-//    private final MyCdcProducer myCdcProducer;
+    private final MyCdcProducer myCdcProducer;
     private final ApplicationEventPublisher applicationEventPublisher;
 
     /** READ는 CUD에 속하지 않으므로 CDC 적용에서 제외 **/
@@ -37,6 +37,10 @@ public class MyServiceImpl implements MyService {
         return entity.map(MyModelConverter::toModel).orElse(null);
     }
 
+    /** try-catch를 통한 방식은
+     * DB 접근시 에러 발생 -> DB 롤백 성공, 카프카 접근 없음
+     * 그러나 DB 접근 후 카프카 프로듀싱 후 에러 발생 -> DB 데이터는 롤백, 카프카 메세지는 저장되는 결함 존재
+     **/
 //    @Override
 //    @Transactional
 //    public MyModel save(MyModel model) { // C, U
@@ -64,14 +68,39 @@ public class MyServiceImpl implements MyService {
 //        }
 //    }
 
+    /**
+     * 이 방식은 @TransactionalEventListener 부분에서 예외 발생해도 DB 롤백이 되지 않음
+     * 왜냐하면 @Transactional 부분 수행으로 DB 커밋이 완료된 이후 트랜잭션과는 별개로 수행되기 때문
+     * 물론 프로듀스 완료 후 예외 발생하면 문제는 없지만, 프로듀스 이전에 예외 발생하면 데이터 정합성이 깨짐
+     */
+//    @Override
+//    @Transactional
+//    public MyModel save(MyModel model) {
+//        OperationType operationType = model.getId() == null ? OperationType.CREATE : OperationType.UPDATE;
+//        MyEntity entity = myJpaRepository.save(MyModelConverter.toEntity(model));
+//        MyModel resultModel = MyModelConverter.toModel(entity);
+//        applicationEventPublisher.publishEvent(
+//                new MyCdcApplicationEvent(this, entity.getId(), resultModel, operationType));
+//        return resultModel;
+//    }
+//
+//    @Override
+//    @Transactional
+//    public void delete(Integer id) {
+//        myJpaRepository.deleteById(id);
+//        applicationEventPublisher.publishEvent(
+//                new MyCdcApplicationEvent(this, id, null, OperationType.DELETE));
+//    }
+
+    /**
+     * @EntityListeners 활용
+     */
     @Override
     @Transactional
     public MyModel save(MyModel model) {
         OperationType operationType = model.getId() == null ? OperationType.CREATE : OperationType.UPDATE;
         MyEntity entity = myJpaRepository.save(MyModelConverter.toEntity(model));
         MyModel resultModel = MyModelConverter.toModel(entity);
-        applicationEventPublisher.publishEvent(
-                new MyCdcApplicationEvent(this, entity.getId(), resultModel, operationType));
         return resultModel;
     }
 
@@ -79,7 +108,5 @@ public class MyServiceImpl implements MyService {
     @Transactional
     public void delete(Integer id) {
         myJpaRepository.deleteById(id);
-        applicationEventPublisher.publishEvent(
-                new MyCdcApplicationEvent(this, id, null, OperationType.DELETE));
     }
 }
