@@ -19,7 +19,7 @@ public class MyConsumer {
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final Map<String, Integer> idHistoryMap = new ConcurrentHashMap<>();
 
-    @KafkaListener(topics = { MY_JSON_TOPIC }, groupId = "test-consumer-group")
+    @KafkaListener(topics = { MY_JSON_TOPIC }, groupId = "test-consumer-group", concurrency = "1")
     public void listen(ConsumerRecord<String, String> message, Acknowledgment acknowledgment) throws JsonProcessingException {
         MyMessage myMessage = objectMapper.readValue(message.value(), MyMessage.class);
         this.printPayloadIfFirstMessage(myMessage);
@@ -35,7 +35,6 @@ public class MyConsumer {
         }
     }
 
-    // 위 syncPrintPayloadIfFirstMessage() 함수와 동일한 기능 수행
     private void printPayloadIfFirstMessage(MyMessage myMessage) {
         if (idHistoryMap.putIfAbsent(String.valueOf(myMessage.getId()), 1) == null) {
             // putIfAbsent() 메서드를 통해 위 syncPrintPayloadIfFirstMessage() 함수와 동일한 기능 수행
