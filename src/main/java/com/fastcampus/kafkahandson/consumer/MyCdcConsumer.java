@@ -1,5 +1,6 @@
 package com.fastcampus.kafkahandson.consumer;
 
+import com.fastcampus.kafkahandson.common.CustomObjectMapper;
 import com.fastcampus.kafkahandson.model.MyCdcMessage;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -13,7 +14,7 @@ import static com.fastcampus.kafkahandson.model.Topic.MY_CDC_TOPIC;
 @Component
 public class MyCdcConsumer {
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper = new CustomObjectMapper();
 
     @KafkaListener(topics = { MY_CDC_TOPIC }, groupId = "cdc-consumer-group", concurrency = "1")
     public void listen(ConsumerRecord<String, String> message, Acknowledgment acknowledgment) throws JsonProcessingException {

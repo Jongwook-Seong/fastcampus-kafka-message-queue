@@ -1,5 +1,6 @@
 package com.fastcampus.kafkahandson.producer;
 
+import com.fastcampus.kafkahandson.common.CustomObjectMapper;
 import com.fastcampus.kafkahandson.model.MyCdcMessage;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -13,10 +14,10 @@ import static com.fastcampus.kafkahandson.model.Topic.MY_CDC_TOPIC;
 @RequiredArgsConstructor
 public class MyCdcProducer {
 
-    ObjectMapper objectMapper = new ObjectMapper();
+    ObjectMapper objectMapper = new CustomObjectMapper();
     private final KafkaTemplate<String, String> kafkaTemplate;
 
     public void sendMessage(MyCdcMessage message) throws JsonProcessingException {
-        kafkaTemplate.send(MY_CDC_TOPIC, objectMapper.writeValueAsString(message));
+        kafkaTemplate.send(MY_CDC_TOPIC, String.valueOf(message.getId()), objectMapper.writeValueAsString(message));
     }
 }
