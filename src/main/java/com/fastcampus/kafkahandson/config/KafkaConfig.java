@@ -23,6 +23,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static com.fastcampus.kafkahandson.model.Topic.MY_CUSTOM_CDC_TOPIC_DLT;
+
 @Configuration
 @EnableKafka
 public class KafkaConfig {
@@ -54,7 +56,8 @@ public class KafkaConfig {
     @Primary
     public ConcurrentKafkaListenerContainerFactory<String, Object> kafkaListenerContainerFactory(
             ConsumerFactory<String, Object> consumerFactory,
-            CommonErrorHandler errorHandler) {
+//            CommonErrorHandler errorHandler,
+            KafkaTemplate<String, Object> kafkaTemplate) {
         ConcurrentKafkaListenerContainerFactory<String, Object> factory = new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(consumerFactory);
 //        DefaultErrorHandler errorHandler = new DefaultErrorHandler(new FixedBackOff(1000L, 2L));
@@ -62,7 +65,13 @@ public class KafkaConfig {
 //        errorHandler.addNotRetryableExceptions(IllegalArgumentException.class);
 //        factory.setCommonErrorHandler(errorHandler);
 //        factory.setCommonErrorHandler(new CommonContainerStoppingErrorHandler());
-        factory.setCommonErrorHandler(errorHandler);
+//        factory.setCommonErrorHandler(errorHandler);
+//        factory.setCommonErrorHandler(new DefaultErrorHandler(new DeadLetterPublishingRecoverer(kafkaTemplate), generateBackOff()));
+        factory.setCommonErrorHandler(new DefaultErrorHandler((record, exception) -> {
+            kafkaTemplate.send(MY_CUSTOM_CDC_TOPIC_DLT, (String) record.key(), record.value());
+            /* 내가 원하는 로직 들어갈 곳 */
+            System.out.println("Give up! - " + exception.getMessage());
+        }, generateBackOff()));
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL); // 수동커밋 설정 시 추가
         factory.setConcurrency(1);
         return factory;
