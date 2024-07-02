@@ -1,6 +1,8 @@
 package com.fastcampus.kafkahandson.config;
 
+import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.kafka.KafkaProperties;
@@ -11,15 +13,15 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.*;
-import org.springframework.kafka.listener.ContainerProperties;
-import org.springframework.kafka.listener.DefaultErrorHandler;
-import org.springframework.kafka.support.serializer.JsonDeserializer;
+import org.springframework.kafka.listener.*;
 import org.springframework.util.backoff.BackOff;
 import org.springframework.util.backoff.ExponentialBackOff;
-import org.springframework.util.backoff.FixedBackOff;
 
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 
 @Configuration
 @EnableKafka
@@ -50,12 +52,16 @@ public class KafkaConfig {
 
     @Bean
     @Primary
-    public ConcurrentKafkaListenerContainerFactory<String, Object> kafkaListenerContainerFactory(ConsumerFactory<String, Object> consumerFactory) {
+    public ConcurrentKafkaListenerContainerFactory<String, Object> kafkaListenerContainerFactory(
+            ConsumerFactory<String, Object> consumerFactory,
+            CommonErrorHandler errorHandler) {
         ConcurrentKafkaListenerContainerFactory<String, Object> factory = new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(consumerFactory);
 //        DefaultErrorHandler errorHandler = new DefaultErrorHandler(new FixedBackOff(1000L, 2L));
-        DefaultErrorHandler errorHandler = new DefaultErrorHandler(generatedBackOff());
-        errorHandler.addNotRetryableExceptions(IllegalArgumentException.class);
+//        DefaultErrorHandler errorHandler = new DefaultErrorHandler(generatedBackOff());
+//        errorHandler.addNotRetryableExceptions(IllegalArgumentException.class);
+//        factory.setCommonErrorHandler(errorHandler);
+//        factory.setCommonErrorHandler(new CommonContainerStoppingErrorHandler());
         factory.setCommonErrorHandler(errorHandler);
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL); // 수동커밋 설정 시 추가
         factory.setConcurrency(1);
@@ -73,6 +79,27 @@ public class KafkaConfig {
         props.put(ProducerConfig.ACKS_CONFIG, kafkaProperties.getProducer().getAcks());
         props.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, "true");
         return new DefaultKafkaProducerFactory<>(props);
+    }
+
+    @Bean
+    @Primary
+    CommonErrorHandler errorHandler() {
+        CommonContainerStoppingErrorHandler cseh = new CommonContainerStoppingErrorHandler();
+        AtomicReference<Consumer<?, ?>> consumer2 = new AtomicReference<>();
+        AtomicReference<MessageListenerContainer> container2 = new AtomicReference<>();
+        DefaultErrorHandler errorHandler = new DefaultErrorHandler((consumerRecord, e) -> {
+            cseh.handleRemaining(e, Collections.singletonList(consumerRecord), consumer2.get(), container2.get());
+            // container stopping error handler를 통해서 해당 컨테이너(컨슈머)를 중지시킨다.
+        }, generateBackOff()) {
+            @Override
+            public void handleRemaining(Exception thrownException, List<ConsumerRecord<?, ?>> records, Consumer<?, ?> consumer, MessageListenerContainer container) {
+                consumer2.set(consumer);
+                container2.set(container);
+                super.handleRemaining(thrownException, records, consumer, container);
+            }
+        };
+//        errorHandler.addNotRetryableExceptions(IllegalArgumentException.class);
+        return errorHandler;
     }
 
     @Bean
@@ -108,7 +135,7 @@ public class KafkaConfig {
         return factory;
     }
 
-    private BackOff generatedBackOff() {
+    private BackOff generateBackOff() {
         ExponentialBackOff backOff = new ExponentialBackOff(1000L, 2L); // 1000ms 간격으로 시작해서 2배씩 증가
         backOff.setMaxElapsedTime(10000L); // 최대 10000ms까지만 증가
         return backOff;
