@@ -72,6 +72,10 @@ public class MyServiceImpl implements MyService {
      * 이 방식은 @TransactionalEventListener 부분에서 예외 발생해도 DB 롤백이 되지 않음
      * 왜냐하면 @Transactional 부분 수행으로 DB 커밋이 완료된 이후 트랜잭션과는 별개로 수행되기 때문
      * 물론 프로듀스 완료 후 예외 발생하면 문제는 없지만, 프로듀스 이전에 예외 발생하면 데이터 정합성이 깨짐
+     * + 일반적으로는 Kafka Produce 로직이 맨 마지막에 위치한다면 그 전에 어떤 exception이 발생하든 의도된 동작에 문제 없겠지만,
+     * JPA를 사용함에 따라 transactional write-behind가 적용되어 엔티티의 id 채번이 필요한 경우가 아닌 경우에는 Kafka Produce 이후에 DB Command가 지연되어 실행됨
+     * 따라서 DB(command)단에서 문제가 발생할 수 있는 가능성이 있다면, 결과적으로 DB에는 미반영되고 Kafka Produce만 정상적으로 이루어질 수도 있게 됨
+     * - transactional write-behind : JPA에서 쿼리의 실질적 실행은 트랜잭션 종료(메서드 return) 이후 동작
      */
 //    @Override
 //    @Transactional
